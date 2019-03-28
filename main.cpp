@@ -61,35 +61,28 @@ std::string format(const char *fmt, ...)
     const auto r = std::vsnprintf(buf, sizeof buf, fmt, args);
     va_end(args);
 
-    if (r < 0)
-        // conversion failed
-        return {};
+    if (r < 0) return {};
 
     const size_t len = r;
-    if (len < sizeof buf)
-        // we fit in the buffer
-        return { buf, len };
+    if (len < sizeof buf) return { buf, len };
 
-#if __cplusplus >= 201703L
-    // C++17: Create a string and write to its underlying array
-    std::string s(len, '\0');
-    va_start(args, fmt);
-    std::vsnprintf(s.data(), len+1, fmt, args);
-    va_end(args);
-
-    return s;
-#else
-    // C++11 or C++14: We need to allocate scratch memory
     auto vbuf = std::unique_ptr<char[]>(new char[len+1]);
     va_start(args, fmt);
     std::vsnprintf(vbuf.get(), len+1, fmt, args);
     va_end(args);
 
     return { vbuf.get(), len };
-#endif
 }
 
 static struct mg_serve_http_opts server_opts;
+
+#define ARGS_NONE ""
+#define ARGS_JSON "Content-Type: application/json\r\nCache-Control: no-store, must-revalidate"
+
+static void render(struct mg_connection *conn, const string &data, const string &headers = ARGS_JSON, int status = 200) {
+	mg_send_head(conn, status, data.size(), headers.size() ? headers.c_str() : NULL);
+  mg_send(conn, data.c_str(), data.size());
+}
 
 static void event_handler(struct mg_connection *conn, int ev, void *p) {
 	if (ev == 0) return;
@@ -104,9 +97,7 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 			auto args = parseQuery(query);
 
 			if (!checkArgs(args, {"action", "s", "t", "p"})) {
-				mg_printf(conn, "%s",
-                    "HTTP/1.0 400 Bad Request\r\n"
-                    "Content-Length: 0\r\n\r\n");
+				render(conn, "Missing arguments", ARGS_NONE, 400);
 				return;
 			}
 
@@ -116,24 +107,25 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 			double p = stod(args["p"]);
 
 			Graph g;
-			initRandom(g, S, T, 0.2);
+			initRandom(g, S, T, p);
 
 			ostringstream out;
 			out << format("{\"nodes\":[");
-			for (int i = 0; i < g.e.size(); i++) {
+			for (int i = 0; i < g.N; i++) {
 				if (i > 0) out << ",";
-				bool left = !(i&1);
-				int x = left ? 0 : 10;
-				int y = i / 2;
+				bool left = !g.nodes[i].side;
+				int x = left ? 0 : max(g.S, g.T);
+				int y = left ? i : i - g.S;
 				const char *color = left ? "#0000FF" : "#FF0000";
 				out << format("{\"id\":\"%d\",\"x\":%d,\"y\":%d,\"size\":%d,\"color\":\"%s\"}",
-					i, x, y, 3, color);
+					i, x, y, left ? 1 : 2, color);
 
 			}
 			out << format("],\"edges\":[");
 			bool first = true;
-			for (int i = 0; i < g.e.size(); i++) {
-				for (auto e: g.e[i]) {
+			for (int i = 0; i < S; i++) {
+				for (auto e: g.nodes[i].e) {
+					if (i >= e.dest) continue;
 					if (first) {
 						first = false;
 					} else {
@@ -142,18 +134,14 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 
 					string id = format("%d-%d", i, e.dest);
 
-					out << format("{\"id\":\"%s\",\"source\":\"%d\",\"target\":\"%d\"}",
-						id.c_str(), i, e.dest);
+					out << format("{\"id\":\"%s\",\"source\":\"%d\",\"target\":\"%d\",\"size\":%.2f}",
+						id.c_str(), i, e.dest, i/1.0f+0.5f);
 				}
 			}
 			out << "]}";
 
 			string data = out.str();
-			mg_printf(conn, 
-				"HTTP/1.1 200 OK\r\n"
-				"Content-Type: application/json\r\n"
-				"Content-Length: %d\r\n\r\n%s",
-				data.size(), data.c_str());
+			render(conn, data);
 
 		} else {
 			mg_serve_http(conn, msg, server_opts);
@@ -175,7 +163,7 @@ BOOL WINAPI consoleHandler(DWORD signal) {
 
 int main() {
 	if (!SetConsoleCtrlHandler(consoleHandler, TRUE)) {
-		printf("\nERROR: Could not set control handler"); 
+		printf("ERROR: Could not set control handler\n"); 
 		return 1;
 	}
 
@@ -196,10 +184,10 @@ int main() {
 	mg_set_protocol_http_websocket(conn);
 	server_opts.document_root = "web";
 	server_opts.index_files = "index.html";
-	server_opts.enable_directory_listing = "no";
+	server_opts.enable_directory_listing = "yes";
 
 	while (running) {
-		mg_mgr_poll(&mgr, 5);
+		mg_mgr_poll(&mgr, 1000);
 	}
 
 	mg_mgr_free(&mgr);
