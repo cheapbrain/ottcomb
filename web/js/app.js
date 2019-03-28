@@ -11,31 +11,44 @@ function httpRequest(url, callback) {
 }
 
 var s = new sigma({
-	container: 'container',
+	renderer: {
+		container: 'container',
+		type: 'canvas',
+	},
 	settings: {
 		edgeColor: '#000000',
-		nodeSize: 2,
-		edgeSize: 2,
+		minEdgeSize: 2,
+		maxEdgeSize: 10,
+		minNodeSize: 0.5,
+		maxNodeSize: 20,
 	},
 });
 
 var obj = {
 
-	size_left: 10,
-	size_right: 10,
-	edge_prob: 0.1,
+	S: 10,
+	T: 10,
+	E: 10,
 	generate: function() {
-		var data = new URLSearchParams({ action: "random", s: obj.size_left, t: obj.size_right, p: obj.edge_prob });
-		sigma.parsers.json("/api?"+data, s, function() { s.refresh(); });
+		var data = new URLSearchParams({ action: "random", s: obj.S, t: obj.T, e: obj.E });
+		sigma.parsers.json("/api?"+data, s, function() { 
+			var edges = s.graph.edges();
+			console.log(edges.length / (obj.size_left * obj.size_right));
+			for (var i = 0; i < edges.length; i++) {
+				edges[i].type = 'curve';
+				edges[i].color = "#777";
+			}
+			s.refresh(); 
+		});
 	},
 
 };
 
 var gui = new dat.gui.GUI();
 
-gui.add(obj, 'size_left').min(0).step(1);
-gui.add(obj, 'size_right').min(0).step(1);
-gui.add(obj, 'edge_prob').min(0).max(1);
+gui.add(obj, 'S').name("Left c.").min(1).step(1);
+gui.add(obj, 'T').name("Right c.").min(1).step(1);
+gui.add(obj, 'E').name("Edge c.").min(0);
 gui.add(obj, 'generate');
 
 

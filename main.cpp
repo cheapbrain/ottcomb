@@ -96,7 +96,7 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 		if (uri == "/api") {
 			auto args = parseQuery(query);
 
-			if (!checkArgs(args, {"action", "s", "t", "p"})) {
+			if (!checkArgs(args, {"action", "s", "t", "e"})) {
 				render(conn, "Missing arguments", ARGS_NONE, 400);
 				return;
 			}
@@ -104,10 +104,10 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 			auto action = args["action"];
 			int S = stoi(args["s"]);
 			int T = stoi(args["t"]);
-			double p = stod(args["p"]);
+			int E = stod(args["e"]);
 
 			Graph g;
-			initRandom(g, S, T, p);
+			initRandom(g, S, T, E);
 
 			ostringstream out;
 			out << format("{\"nodes\":[");
@@ -118,7 +118,7 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 				int y = left ? i : i - g.S;
 				const char *color = left ? "#0000FF" : "#FF0000";
 				out << format("{\"id\":\"%d\",\"x\":%d,\"y\":%d,\"size\":%d,\"color\":\"%s\"}",
-					i, x, y, left ? 1 : 2, color);
+					i, x, y, 1, color);
 
 			}
 			out << format("],\"edges\":[");
@@ -135,7 +135,7 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 					string id = format("%d-%d", i, e.dest);
 
 					out << format("{\"id\":\"%s\",\"source\":\"%d\",\"target\":\"%d\",\"size\":%.2f}",
-						id.c_str(), i, e.dest, i/1.0f+0.5f);
+						id.c_str(), i, e.dest, 1);
 				}
 			}
 			out << "]}";

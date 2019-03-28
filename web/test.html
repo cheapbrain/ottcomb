@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title> Bipartite Graphs </title>
+</head>
+<body>
+
+  <script type="text/javascript" src="js/dat.gui.min.js"></script>
+  <script type="text/javascript" src="js/sigma.min.js"></script>
+  <script type="text/javascript" src="js/sigma.parsers.json.min.js"></script>
+  <script type="text/javascript" src="js/sigma.renderers.parallelEdges.min.js"></script>
+
+  <div id="container">
+  <style>
+    #graph-container {
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      position: absolute;
+    }
+  </style>
+  <div id="graph-container"></div>
+</div>
+<script>
+// generate a random graph
+var i,
+    s,
+    img,
+    N = 10,
+    E = 50,
+    g = {
+      nodes: [],
+      edges: []
+    },
+    colors = [
+      '#617db4',
+      '#668f3c',
+      '#c6583e',
+      '#b956af'
+    ];
+
+// Generate a random graph, going through the different edge shapes
+for (i = 0; i < N; i++) {
+  g.nodes.push({
+    id: 'n' + i,
+    label: 'Node ' + i,
+    x: Math.random(),
+    y: Math.random(),
+    size: Math.random(),
+    color: colors[Math.floor(Math.random() * colors.length)]
+  });
+}
+
+for (i = 0; i < E; i++) {
+  g.edges.push({
+    id: 'e' + i,
+    source: 'n' + (Math.random() * N | 0),
+    target: 'n' + (Math.random() * N | 0),
+    type: 'curve',
+    size: Math.random()
+  });
+}
+
+s = new sigma({
+  graph: g,
+  renderer: {
+    container: document.getElementById('graph-container'),
+    type: 'canvas',
+  },
+  settings: {
+    minNodeSize: 1,
+    maxNodeSize: 10,
+    minEdgeSize: 0.1,
+    maxEdgeSize: 2,
+  }
+});
+</script>
+
+</body>
+</html>
