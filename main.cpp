@@ -17,7 +17,9 @@ extern "C" {
 #include <stdio.h>
 #include <windows.h>
 
+#define main _main1
 #include "hopcroft.cpp"
+#undef main
 
 using namespace std;
 

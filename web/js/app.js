@@ -19,8 +19,6 @@ var s = new sigma({
 		edgeColor: '#000000',
 		minEdgeSize: 2,
 		maxEdgeSize: 10,
-		minNodeSize: 0.5,
-		maxNodeSize: 20,
 	},
 });
 

@@ -1,6 +1,7 @@
 #include <vector>
 #include <cinttypes>
 #include <random>
+#include <iostream>
 
 using namespace std;
 
@@ -72,5 +73,26 @@ void initRandom(Graph &g, int S, int T, int count) {
 			}
 		}
 	}
+}
+
+vector<int> hopcroft(Graph const &g) {
+	auto m = vector<int>(g.N, -1);
+
+	bool found = false;
+	do {
+
+		for ()
+
+	}	while(!found);
+
+	return m;
+}
+
+
+int main() {
+
+	cout << "test" << endl;
+
+	return 0;
 }
 
