@@ -136,12 +136,13 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 						out << ",";
 					}
 
-					const char *color = m[i] == e.dest ? "#ff0000" : "#000000";
+					float size = m[i] == e.dest ? 1 : 0.5;
+					const char *color = m[i] == e.dest ? "#1e1" : "#777";
 
 					string id = format("%d-%d", i, e.dest);
 
 					out << format("{\"id\":\"%s\",\"source\":\"%d\",\"target\":\"%d\",\"size\":%.2f,\"color\":\"%s\"}",
-						id.c_str(), i, e.dest, 1, color);
+						id.c_str(), i, e.dest, size, color);
 				}
 			}
 			out << "]}";

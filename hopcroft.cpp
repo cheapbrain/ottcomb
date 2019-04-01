@@ -89,29 +89,30 @@ bool hop_bfs(Graph const &g, vector<int> &m, int start, bool flip = false) {
 		int i = q.front();
 		q.pop_front();
 
-		if ((i < g.S) == flip) {
-			q.push_back(m[i]);
-			pred[m[i]] = i;
-		} else {
+		if ((i < g.S) != flip) {
 			for (Edge e: g.nodes[i].e) {
 				int j = e.dest;
-				if (m[j] == NONE) {
-					while (j != NONE) {
-						m[j] = pred[j];
-						m[pred[j]] = j;
-						j = pred[pred[j]];
-					}
-					return true;
-				} else {
-					pred[j] = i;
-					q.push_back(j);
-				}
-			}
-		}
+                if (pred[j] == NONE) {
+                    pred[j] = i;
+                    if (m[j] == NONE) {
+                        while (j != NONE) {
+                            m[j] = pred[j];
+                            m[pred[j]] = j;
+                            j = pred[pred[j]];
+                        }
+                        return true;
+                    } else {
+                        pred[j] = j;
+                        pred[m[j]] = j;
+                        q.push_back(m[j]);
+                    }
+                }
+            }
+        }
 
-	}
+    }
 
-	return false;
+    return false;
 }
 
 vector<int> hopcroft(Graph const &g) {

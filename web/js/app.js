@@ -17,8 +17,8 @@ var s = new sigma({
 	},
 	settings: {
 		edgeColor: '#000000',
-		minEdgeSize: 2,
-		maxEdgeSize: 10,
+		minEdgeSize: 1,
+		maxEdgeSize: 5,
 	},
 });
 
@@ -33,8 +33,6 @@ var obj = {
 			var edges = s.graph.edges();
 			console.log(edges.length / (obj.size_left * obj.size_right));
 			for (var i = 0; i < edges.length; i++) {
-				edges[i].type = 'curve';
-				edges[i].color = "#777";
 			}
 			s.refresh(); 
 		});
