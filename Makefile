@@ -9,7 +9,7 @@ mongoose.o: mongoose.c
 	gcc -O3 -o $@ -c $<
 
 main.o: $(src)
-	g++ -O3 -o $@ -c main.cpp
+	g++ -g -Wall -o $@ -c main.cpp
 
 .PHONY: run
 run: $(TARGET)

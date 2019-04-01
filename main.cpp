@@ -111,6 +111,8 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 			Graph g;
 			initRandom(g, S, T, E);
 
+			vector<int> m = hopcroft(g);
+
 			ostringstream out;
 			out << format("{\"nodes\":[");
 			for (int i = 0; i < g.N; i++) {
@@ -134,10 +136,12 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 						out << ",";
 					}
 
+					const char *color = m[i] == e.dest ? "#ff0000" : "#000000";
+
 					string id = format("%d-%d", i, e.dest);
 
-					out << format("{\"id\":\"%s\",\"source\":\"%d\",\"target\":\"%d\",\"size\":%.2f}",
-						id.c_str(), i, e.dest, 1);
+					out << format("{\"id\":\"%s\",\"source\":\"%d\",\"target\":\"%d\",\"size\":%.2f,\"color\":\"%s\"}",
+						id.c_str(), i, e.dest, 1, color);
 				}
 			}
 			out << "]}";

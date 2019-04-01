@@ -1,4 +1,5 @@
 #include <vector>
+#include <deque>
 #include <cinttypes>
 #include <random>
 #include <iostream>
@@ -7,6 +8,8 @@ using namespace std;
 
 typedef uint64_t u64;
 typedef uint8_t u8;
+
+#define NONE -1
 
 struct Edge {
 	int dest;
@@ -75,15 +78,48 @@ void initRandom(Graph &g, int S, int T, int count) {
 	}
 }
 
+bool hop_bfs(Graph const &g, vector<int> &m, int start, bool flip = false) {
+	vector<int> pred(g.N, NONE);
+
+	deque<int> q;
+
+	q.push_back(start);
+
+	while (!q.empty()) {
+		int i = q.front();
+		q.pop_front();
+
+		if ((i < g.S) == flip) {
+			q.push_back(m[i]);
+			pred[m[i]] = i;
+		} else {
+			for (Edge e: g.nodes[i].e) {
+				int j = e.dest;
+				if (m[j] == NONE) {
+					while (j != NONE) {
+						m[j] = pred[j];
+						m[pred[j]] = j;
+						j = pred[pred[j]];
+					}
+					return true;
+				} else {
+					pred[j] = i;
+					q.push_back(j);
+				}
+			}
+		}
+
+	}
+
+	return false;
+}
+
 vector<int> hopcroft(Graph const &g) {
-	auto m = vector<int>(g.N, -1);
+	auto m = vector<int>(g.N, NONE);
 
-	bool found = false;
-	do {
-
-		for ()
-
-	}	while(!found);
+	for (int i = 0; i < g.S; i++) {
+		hop_bfs(g, m, i, false);
+	}
 
 	return m;
 }
