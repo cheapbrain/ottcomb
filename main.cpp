@@ -109,7 +109,7 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 			int E = stod(args["e"]);
 
 			Graph g;
-			initRandom(g, S, T, E);
+			initRandom3(g, S, T, E);
 
 			vector<int> m = hopcroft(g);
 
@@ -117,7 +117,7 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 			out << format("{\"nodes\":[");
 			for (int i = 0; i < g.N; i++) {
 				if (i > 0) out << ",";
-				bool left = !g.nodes[i].side;
+				bool left = i < g.S;
 				int x = left ? 0 : max(g.S, g.T);
 				int y = left ? i : i - g.S;
 				const char *color = left ? "#0000FF" : "#FF0000";
@@ -127,17 +127,19 @@ static void event_handler(struct mg_connection *conn, int ev, void *p) {
 			}
 			out << format("],\"edges\":[");
 			bool first = true;
+
 			for (int i = 0; i < S; i++) {
 				for (auto e: g.nodes[i].e) {
-					if (i >= e.dest) continue;
+					bool match = m[i] == e.dest;
+
 					if (first) {
 						first = false;
 					} else {
 						out << ",";
 					}
 
-					float size = m[i] == e.dest ? 1 : 0.5;
-					const char *color = m[i] == e.dest ? "#1e1" : "#777";
+					float size = match ? 1 : 0.5;
+					const char *color = match ? "#1e1" : "#777";
 
 					string id = format("%d-%d", i, e.dest);
 
@@ -200,6 +202,8 @@ int main() {
 	mg_mgr_free(&mgr);
 
 	printf("APP STOP\n");
+
+	exit(0);
 
 	return 0;
 }
