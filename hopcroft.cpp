@@ -18,7 +18,7 @@ typedef uint8_t u8;
 
 struct Edge {
 	int dest;
-	int weight;
+	float weight;
 };
 
 struct Node {
@@ -34,26 +34,20 @@ struct Node {
 };
 
 struct Graph {
-	int N, S, T;
+	int N;
 	vector<Node> nodes;
 
-	Graph() {
-		N = S = T = 0;
-	}
-
-	Graph(int pS, int pT) {
-		S = pS;
-		T = pT;
-		N = S+T;
+	Graph(int N = 0) {
+		this->N = N;
 		nodes = vector<Node>(N);
 	}
 
 	void clear() {
-		N = S = T = 0;
+		N = 0;
 		nodes.clear();
 	}
 
-	void addEdge(int a, int b, int w = 1) {
+	void addEdge(int a, int b, float w = 1.f) {
 		nodes[a].add({b, w});
 		nodes[b].add({a, w});
 	}
@@ -66,6 +60,21 @@ struct Graph {
 	}
 };
 
+struct BiGraph : Graph {
+	int S, T;
+
+	BiGraph(int S = 0, int T = 0) : Graph(S+T) {
+		this->S = S;
+		this->T = T;
+	}
+
+	void clear() {
+		Graph::clear();
+		S = T = 0;
+	}
+
+};
+
 double drand() {
 	static random_device rd;
 	static mt19937 mtgen(rd());
@@ -73,9 +82,9 @@ double drand() {
 	return fdis01(mtgen);
 }
 
-void initRandom1(Graph &g, int S, int T, int out_degree) {
+void initRandom1(BiGraph &g, int S, int T, int out_degree) {
 	int N = S+T;
-	g = Graph(S, T);
+	g = BiGraph(S, T);
 
 	double prob = (double)out_degree / (double)T;
 
@@ -88,10 +97,10 @@ void initRandom1(Graph &g, int S, int T, int out_degree) {
 	}
 }
 
-void initRandom2(Graph &g, int S, int T, int out_degree) {
+void initRandom2(BiGraph &g, int S, int T, int out_degree) {
 	unordered_set<u64> used;
 
-	g = Graph(S, T);
+	g = BiGraph(S, T);
 
 	int count = out_degree * S;
 
@@ -108,11 +117,11 @@ void initRandom2(Graph &g, int S, int T, int out_degree) {
 
 }
 
-void initRandom3(Graph &g, int S, int T, double out_degree) {
+void initRandom3(BiGraph &g, int S, int T, double out_degree) {
 	double p = (double)out_degree / (double)T;
 	double logp = log(1.0 - p);
 
-	g = Graph(S, T);
+	g = BiGraph(S, T);
 	i64 i = -1;
 	i64 E = (i64)S * (i64)T;
 	while (i < E) {
@@ -120,11 +129,12 @@ void initRandom3(Graph &g, int S, int T, double out_degree) {
 		i = i + k + 1;
 		int s = (int)(i / g.T);
 		int t = (int)(i % g.T) + g.S;
-		g.addEdge(s, t);
+		float w = (float)(2*drand()+0.0001);
+		g.addEdge(s, t, w);
 	}
 }
 
-bool bi_max_match_bfs(Graph const &g, vector<int> &m, int start, vector<int> &pred) {
+bool bi_max_match_bfs(BiGraph const &g, vector<int> &m, int start, vector<int> &pred) {
 	fill(pred.begin(), pred.end(), NONE);
 	queue<int> q;
 	q.push(start);
@@ -159,7 +169,7 @@ bool bi_max_match_bfs(Graph const &g, vector<int> &m, int start, vector<int> &pr
 	return false;
 }
 
-vector<int> bi_max_match(Graph const &g) {
+vector<int> bi_max_match(BiGraph const &g) {
 	vector<int> m (g.N, NONE);
 	vector<int> pred (g.N, NONE);
 
@@ -170,54 +180,28 @@ vector<int> bi_max_match(Graph const &g) {
 	return m;
 }
 
-void hop_init(Graph const &g, vector<int> &m, vector<int> &level, vector<int> &avail, vector<int> &reached) {
-	bool flip = g.S > g.T;
-	m = vector<int>(g.N, NONE);
-	level = vector<int>(g.N);
-	avail = vector<int>(flip ? g.T : g.S);
-	iota(avail.begin(), avail.end(), flip ? g.S : 0);
-	reached.reserve(flip ? g.S : g.T);
-}
-
-bool hop_bfs(Graph const &g, vector<int> &m, vector<int> &level, vector<int> &avail, vector<int> &reached, bool deep = false, bool useavail = true) {
+bool hop_bfs(BiGraph const &g, vector<int> &m, vector<int> &level, vector<int> &reached, int start, int end) {
 	bool found = false;
 	reached.clear();
 	queue<int> q;
 
-	if (useavail) {
-		fill(level.begin(), level.end(), INF);
-		for (vector<int>::size_type i = 0; i < avail.size(); i++) {
-			if (m[avail[i]] == NONE) {
-				q.push(avail[i]);
-				level[avail[i]] = 0;
-			} else {
-				avail[i--] = avail.back();
-				avail.pop_back();
-			}
-		}
-	} else {
-		for (int i = 0; i < g.S; i++) {
-			if (m[i] == NONE) {
-				q.push(i);
-				level[i] = 0;
-			} else level[i] = INF;
+	fill(level.begin(), level.end(), INF);
+	for (int i = start; i < end; i++) {
+		if (m[i] == NONE) {
+			q.push(i);
+			level[i] = 0;
 		}
 	}
 
-	int last_level = 0;
 	while (!q.empty()) {
 		int i = q.front(); q.pop();
-
-		int curr_level = level[i];
-		if (!deep && found && curr_level > last_level) break;
-		else last_level = curr_level;
 
 		for (Edge e: g.nodes[i].e) {
 			int j = e.dest;
 			if (level[j] == INF) {
-				level[j] = curr_level + 1;
+				level[j] = level[i] + 1;
 				if (m[j] != NONE) {
-					level[m[j]] = curr_level + 2;
+					level[m[j]] = level[i] + 2;
 					q.push(m[j]);
 				} else {
 					reached.push_back(j);
@@ -230,40 +214,39 @@ bool hop_bfs(Graph const &g, vector<int> &m, vector<int> &level, vector<int> &av
 	return found;
 }
 
-bool hop_dfs(Graph const &g, vector<int> &m, vector<int> &level, int i) {
+bool hop_dfs(BiGraph const &g, vector<int> &m, vector<int> &level, int i) {
 	if (i == NONE) return true;
 	for (Edge e: g.nodes[i].e) {
 		int j = e.dest;
-		if (level[i] == level[j] + 1 && hop_dfs(g, m, level, m[j])) {
+		if (level[i] == level[j] + 1) {
 			level[j] = INF;
-			m[i] = j; m[j] = i;
-			return true;
-		} else level[j] = INF;
+			if (hop_dfs(g, m, level, m[j])) {
+				m[i] = j; m[j] = i;
+				return true;
+			}
+		}
 	}
 	return false;
 }
 
-typedef vector<int> (*p_hopfunc)(Graph const&, bool, bool, bool);
-vector<int> hopcroft(Graph const &g, bool deep = false, bool useavail = true, bool swapside = false) {
-	vector<int> m, level, avail, reached;
-	hop_init(g, m, level, avail, reached);
+typedef vector<int> (*p_hopfunc)(BiGraph const&);
+vector<int> hopcroft(BiGraph const &g) {
+	bool flip = g.S > g.T;
+	vector<int> m(g.N, NONE);
+	vector<int> level(g.N);
+	vector<int> reached;
+	reached.reserve(flip ? g.S : g.T);
+	int start = flip ? g.S : 0;
+	int end = flip ? g.N : g.S;
 
-	while(hop_bfs(g, m, level, avail, reached, deep)) {
-		for (int i: reached) {
-			hop_dfs(g, m, level, i);
-		}
-
-		if (swapside) {
-			if (reached.size() < avail.size()) {
-				swap(reached, avail);
-			}
-		}
+	while(hop_bfs(g, m, level, reached, start, end)) {
+		for (int i: reached) hop_dfs(g, m, level, i);
 	}
 
 	return m;
 }
 
-int check_match(Graph const &g, vector<int> const &m) {
+int check_match(BiGraph const &g, vector<int> const &m) {
 	int count = 0;
 
 	for (int i = 0; i < (int)m.size(); i++) {
@@ -276,67 +259,29 @@ int check_match(Graph const &g, vector<int> const &m) {
 	return count / 2;
 }
 
-int main1() {
-	while(true) {
-		Graph g;
-		initRandom1(g, 5, 5, 2);
-		auto m1 = bi_max_match(g);
-		auto m2 = hopcroft(g);
-
-		int c1 = check_match(g, m1);
-		int c2 = check_match(g, m2);
-		if (c1 != c2) {
-			cout << "error" << endl;
-			while(true);
-		}
-		cout << "done" << endl;
-	}
-
-	return 0;
-}
-
-int main2() {
-	Graph g (5, 5);
-	g.addEdge(0, 5);
-	g.addEdge(0, 8);
-	g.addEdge(0, 9);
-	g.addEdge(1, 7);
-	g.addEdge(1, 8);
-	g.addEdge(1, 9);
-	g.addEdge(2, 6);
-	g.addEdge(2, 7);
-	g.addEdge(2, 8);
-	g.addEdge(3, 5);
-	g.addEdge(3, 8);
-	g.addEdge(4, 8);
-
-	auto m = hopcroft(g);
-
-	return 0;
-}
-
-void measure(p_hopfunc func, Graph const &g, bool deep, bool useavail, bool swapside) {
+void measure(p_hopfunc func, BiGraph const &g) {
 	auto start = chrono::high_resolution_clock::now(); 
 
-	auto m = func(g, deep, useavail, swapside);
+	auto m = func(g);
 
 	auto stop = chrono::high_resolution_clock::now(); 
 	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start); 
 
 	int c = check_match(g, m);
 
-	cout << (int)deep << (int)useavail << (int)swapside << " " << c << " " << duration.count()/1000.f << "s" << endl;
+	cout << "match: " << c << " " << duration.count()/1000.f << "s" << endl;
 
 }
 
 int main(int argc, char **argv) {
 
-	int size = atoi(argv[1]);
-	int out_degree = atoi(argv[2]);
-	int generator = atoi(argv[3]);
+	int S = atoi(argv[1]);
+	int T = atoi(argv[2]);
+	int out_degree = atoi(argv[3]);
+	int generator = atoi(argv[4]);
 
 
-	Graph g;
+	BiGraph g;
 
 	{
 		cout << "generating..." << endl;
@@ -345,13 +290,13 @@ int main(int argc, char **argv) {
 
 		switch(generator) {
 			case 1:
-			initRandom1(g, size, size, out_degree);
+			initRandom1(g, S, T, out_degree);
 			break;
 			case 2:
-			initRandom2(g, size, size, out_degree);
+			initRandom2(g, S, T, out_degree);
 			break;
 			case 3:
-			initRandom3(g, size, size, out_degree);
+			initRandom3(g, S, T, out_degree);
 			break;
 		}
 
@@ -366,11 +311,8 @@ int main(int argc, char **argv) {
 		cout << "done. " << duration.count()/1000.f << "s" << endl;
 	}
 
-	measure(hopcroft, g, false, false, false);
-	measure(hopcroft, g, true, false, false);
-	measure(hopcroft, g, false, true, false);
-	measure(hopcroft, g, true, true, false);
-	measure(hopcroft, g, true, true, true);
+	measure(bi_max_match, g);
+	measure(hopcroft, g);
 
 	return 0;
 }
