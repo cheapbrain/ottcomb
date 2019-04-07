@@ -4,6 +4,17 @@
 
 using namespace std;
 
+template<typename T>
+struct Vec2D {
+ size_t w, h;
+ T *v;
+
+ Vec2D(int h, int w): w(w), h(h) { v = new T[w*h](); }
+ ~Vec2D() { delete v; }
+ T const operator()(size_t y, size_t x) const { return v[x+y*w]; }
+ T& operator()(size_t y, size_t x) { return v[x+y*w]; }
+};
+
 double drand() {
     static random_device rd;
     static mt19937 mtgen(rd());
@@ -11,68 +22,76 @@ double drand() {
     return fdis01(mtgen);
 }
 
-vector<int> randGraph(int N) {
-    vector<int> g(N*N);
+Vec2D<int> randGraph(int N) {
+    Vec2D<int> g(N, N);
 
     for (int i = 0; i < N*N; i++) {
-        g[i] = (int)(10*drand());
+        g.v[i] = (int)(10*drand());
     }
 
     return g;
 }
 
-void print(vector<int> g, int N) {
-    for (int s = 0; s < N; s++) {
-        for (int t = 0; t < N; t++) {
-            cout << g[s*N+t] << " ";
+void print(Vec2D<int> g) {
+    for (int s = 0; s < g.h; s++) {
+        for (int t = 0; t < g.w; t++) {
+            cout << g(s,t) << " ";
         }
         cout << endl;
     }
     cout << endl;
 }
 
-int minMatch(vector<int> const &g, int S, int T) {
-    int N = S+T;
-    vector<int> c(g);
-    vector<bool> x(S*T, false);
+void print(vector<int> v) {
+    for (int x: v) {
+        cout << x << " ";
+    }
+    cout << endl;
+}
+
+int matchCost(vector<int> const &u, vector<int> const &v) {
+    int m = 0;
+    for (int x: u) m += x;
+    for (int x: v) m += x;
+    return m;
+}
+
+int minMatch(Vec2D<int> const &g) {
+    int S = g.h; int T = g.w; int N = S+T;
+    Vec2D<int> c = g;
+    Vec2D<bool> x(S, T);
     vector<int> u(S, INT_MAX);
     vector<int> v(T, INT_MAX);
     vector<int> m1(S, -1);
     vector<int> m2(T, -1);
     int card = 0;
+    int z = 0;
 
-    for (int s = 0; s < S; s++) {
-        for (int t = 0; t < T; t++) {
-            u[s] = min(c[s*T+t], u[s]);
-        }
-    } 
+    // step 1
+    for (int s = 0; s < S; s++) for (int t = 0; t < T; t++) {
+        u[s] = min(c(s,t), u[s]);
+    }
+    for (int s = 0; s < S; s++) for (int t = 0; t < T; t++) {
+        v[t] = min(c(s,t) - u[s], v[t]);
+    }
 
-    for (int s = 0; s < S; s++) {
-        for (int t = 0; t < T; t++) {
-            c[s*T+t] -= u[s];
-            v[t] = min(c[s*T+t], v[t]);
+    // step 2
+    for (int s = 0; s < S; s++) for (int t = 0; t < T; t++) {
+        if (c(s,t) == u[s]+v[t] and m1[s] == -1 and m2[t] == -1) {
+            x(s,t) = true;
+            m1[s] = t; m2[t] = s;
+            z += c(s,t);
+            card++;
         }
     }
 
-    for (int s = 0; s < S; s++) {
-        for (int t = 0; t < T; t++) {
-            c[s*T+t] -= v[t];
-        }
-    }
+    int target = min(S, T);
 
-    for (int s = 0; s < S; s++) {
-        for (int t = 0; t < T; t++) {
-            if (c[s*T+t] == 0 and m1[s] == -1 and m2[t] == -1) {
-                x[s*T+t] = true;
-                m1[s] = t; m2[t] = s;
-                card++;
-            }
-        }
-    }
-
-    if (card == min(S, T)) return 0; // TODO
-
-    while (true) {
+    while (card < target) {
+        cout << card << endl;
+        print(m1);
+        print(m2);
+        // step 3.1
         vector<int> l;
         vector<int> l1(S, -1);
         vector<int> l2(T, -1);
@@ -81,12 +100,12 @@ int minMatch(vector<int> const &g, int S, int T) {
         for (int s = 0; s < S; s++) {
             if (m1[s] != -1) continue;
 
-            l1[s] = 0;
+            l1[s] = -2; // -2 == S
             l.push_back(s);
             for (int t = 0; t < T; t++) {
                 if (l2[t] != -1) continue;
-                if (c[s*T+t] < p[t]) {
-                    p[t] = c[s*T+t];
+                if (c(s,t)-u[s]-v[t] < p[t]) {
+                    p[t] = c(s,t)-u[s]-v[t];
                     h[t] = s;
                 }
             }
@@ -95,51 +114,77 @@ int minMatch(vector<int> const &g, int S, int T) {
         int path = -1;
         while (path == -1) {
             while (path == -1 and l.size() > 0) {
+                // step 3.2
                 int k = l.back(); l.pop_back();
                 if (k < S) {
+                    // step 3.2.A
                     int s = k;
                     for (int t = 0; t < T; t++) {
-                        if (l2[t] != -1 or c[s*T+t] != 0) continue;
+                        if (l2[t] != -1 or c(s,t) != u[s]+v[t]) continue;
 
                         l2[t] = s;
                         l.push_back(t+S);
                     }
                 } else {
                     k -= S;
-                    if (m2[k] == -1) {
+                    // cout << k << " " << m;
+                    int s = m2[k];
+                    if (s == -1) {
                         path = k;
-                    } else if (l1[m2[k]] == -1) {
-                        l1[m2[k]] = k;
-                        l.push_back(m2[k]);
+                    } else if (l1[s] == -1) {
+                        // step 3.2.B
+                        l1[s] = k;
+                        l.push_back(s);
                         for (int t = 0; t < T; t++) {
-                            if ()
-
+                            if (c(s,t)-u[s]-v[t] >= p[t]) continue;
+                            p[t] = c(s,t)-u[s]-v[t];
+                            h[t] = s;
                         }
                     }
                 }
             }
 
             if (path == -1) {
-                // dual iteration
+                // step 4 dual iteration
+                int delta = INT_MAX;
+                for (int t = 0; t < T; t++) {
+                    if (l2[t] == -1) delta = min(delta, p[t]);
+                }
+                for (int s = 0; s < S; s++) {
+                    u[s] += delta;
+                }
+                for (int t = 0; t < T; t++) {
+                    v[t] -= delta;
+                    p[t] -= delta;
+                    if (l2[t] == -1 and p[t] == 0) {
+                        l2[t] = h[t]; //TODO (h(t), +) cosa significa??
+                        l.push_back(t+S);
+                    }
+                }
             }
         }
 
-        // primal iteration
+        // step 5 primal iteration
+        int t = path;
+        do {
+            int s = l2[t];
+            m2[t] = s; m1[s] = t;
+            x(s,t) = true;
+            z += c(s,t);
+            card++;
+            t = l1[s];
+            if (t != -2) {
+                x(s,t) = false;
+                z -= c(s,t);
+                card--;
+            }
+        } while(t != -2);
 
     }
 
-    return 0;
-}
-
-int main2() {
-
-    int N = 5;
-    vector<int> g = randGraph(N);
-    print(g, N);
-    minMatch(g, N, N);
-    print(g, N);
-
-    return 0;
+    print(m1);
+    print(m2);
+    return z;
 }
 
 int main() {
@@ -147,13 +192,15 @@ int main() {
     int N;
     cin >> N;
 
-    vector<int> g(N*N);
+    Vec2D<int> g(N, N);
 
     for (int i = 0; i < N*N; i++) {
-        cin >> g[i];
+        cin >> g.v[i];
     }
 
-    minMatch(g, N, N);
+    int m = minMatch(g);
+
+    cout << m << endl;
 
     return 0;
 }
