@@ -6,13 +6,21 @@ using namespace std;
 
 template<typename T>
 struct Vec2D {
- size_t w, h;
+ size_t w, h, size;
  T *v;
 
- Vec2D(int h, int w): w(w), h(h) { v = new T[w*h](); }
+ Vec2D(int h, int w): w(w), h(h), size(w*h) { v = new T[size](); }
+ Vec2D(Vec2D<T> const &other): Vec2D(other.h, other.w) { copy(other.v, other.v+size, v); }
  ~Vec2D() { delete v; }
  T const operator()(size_t y, size_t x) const { return v[x+y*w]; }
  T& operator()(size_t y, size_t x) { return v[x+y*w]; }
+ void init(int &y, int &x) const { y = 0; x = -1; }
+ bool next(int &y, int &x) const {
+    if (++x >= w) {
+        x = 0;
+        return (++y < h);
+    } else return true;
+ }
 };
 
 double drand() {
@@ -66,17 +74,21 @@ int minMatch(Vec2D<int> const &g) {
     vector<int> m2(T, -1);
     int card = 0;
     int z = 0;
+    int s, t;
 
     // step 1
-    for (int s = 0; s < S; s++) for (int t = 0; t < T; t++) {
+    for (c.init(s,t); c.next(s,t);) {
         u[s] = min(c(s,t), u[s]);
     }
-    for (int s = 0; s < S; s++) for (int t = 0; t < T; t++) {
-        v[t] = min(c(s,t) - u[s], v[t]);
+    for (c.init(s,t); c.next(s,t);) {
+        v[t] = min(c(s,t) -= u[s], v[t]);
+    }
+    for (c.init(s,t); c.next(s,t);) {
+        c(s,t) -= v[t];
     }
 
     // step 2
-    for (int s = 0; s < S; s++) for (int t = 0; t < T; t++) {
+    for (s=0, t=-1; c.next(s,t);) {
         if (c(s,t) == u[s]+v[t] and m1[s] == -1 and m2[t] == -1) {
             x(s,t) = true;
             m1[s] = t; m2[t] = s;
@@ -88,21 +100,18 @@ int minMatch(Vec2D<int> const &g) {
     int target = min(S, T);
 
     while (card < target) {
-        cout << card << endl;
-        print(m1);
-        print(m2);
         // step 3.1
         vector<int> l;
         vector<int> l1(S, -1);
         vector<int> l2(T, -1);
         vector<int> p(T, INT_MAX);
         vector<int> h(T, -1);
-        for (int s = 0; s < S; s++) {
+        for (s = 0; s < S; s++) {
             if (m1[s] != -1) continue;
 
             l1[s] = -2; // -2 == S
             l.push_back(s);
-            for (int t = 0; t < T; t++) {
+            for (t = 0; t < T; t++) {
                 if (l2[t] != -1) continue;
                 if (c(s,t)-u[s]-v[t] < p[t]) {
                     p[t] = c(s,t)-u[s]-v[t];
@@ -118,8 +127,8 @@ int minMatch(Vec2D<int> const &g) {
                 int k = l.back(); l.pop_back();
                 if (k < S) {
                     // step 3.2.A
-                    int s = k;
-                    for (int t = 0; t < T; t++) {
+                    s = k;
+                    for (t = 0; t < T; t++) {
                         if (l2[t] != -1 or c(s,t) != u[s]+v[t]) continue;
 
                         l2[t] = s;
@@ -127,15 +136,14 @@ int minMatch(Vec2D<int> const &g) {
                     }
                 } else {
                     k -= S;
-                    // cout << k << " " << m;
-                    int s = m2[k];
+                    s = m2[k];
                     if (s == -1) {
                         path = k;
                     } else if (l1[s] == -1) {
                         // step 3.2.B
                         l1[s] = k;
                         l.push_back(s);
-                        for (int t = 0; t < T; t++) {
+                        for (t = 0; t < T; t++) {
                             if (c(s,t)-u[s]-v[t] >= p[t]) continue;
                             p[t] = c(s,t)-u[s]-v[t];
                             h[t] = s;
@@ -147,13 +155,13 @@ int minMatch(Vec2D<int> const &g) {
             if (path == -1) {
                 // step 4 dual iteration
                 int delta = INT_MAX;
-                for (int t = 0; t < T; t++) {
+                for (t = 0; t < T; t++) {
                     if (l2[t] == -1) delta = min(delta, p[t]);
                 }
-                for (int s = 0; s < S; s++) {
+                for (s = 0; s < S; s++) {
                     u[s] += delta;
                 }
-                for (int t = 0; t < T; t++) {
+                for (t = 0; t < T; t++) {
                     v[t] -= delta;
                     p[t] -= delta;
                     if (l2[t] == -1 and p[t] == 0) {
@@ -165,9 +173,9 @@ int minMatch(Vec2D<int> const &g) {
         }
 
         // step 5 primal iteration
-        int t = path;
+        t = path;
         do {
-            int s = l2[t];
+            s = l2[t];
             m2[t] = s; m1[s] = t;
             x(s,t) = true;
             z += c(s,t);
@@ -182,8 +190,8 @@ int minMatch(Vec2D<int> const &g) {
 
     }
 
-    print(m1);
-    print(m2);
+    print(c);
+
     return z;
 }
 
@@ -193,14 +201,18 @@ int main() {
     cin >> N;
 
     Vec2D<int> g(N, N);
+    print(g);
 
     for (int i = 0; i < N*N; i++) {
         cin >> g.v[i];
     }
 
+    print(g);
+
     int m = minMatch(g);
 
     cout << m << endl;
+    print(g);
 
     return 0;
 }
