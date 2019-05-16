@@ -6,22 +6,24 @@
 
 using namespace std;
 
-template<typename T>
-struct Vec2D {
-	size_t w, h, size;
-	T *v;
+typedef uint64_t u64;
 
-	Vec2D(int h, int w): w(w), h(h), size(w * h) { v = new T[size]; }
-	Vec2D(int h, int w, T value): Vec2D(h, w) { fill(v, v + size, value); }
-	Vec2D(Vec2D<T> const &o): Vec2D(o.h, o.w) { copy(o.v, o.v + size, v); }
+template<typename A>
+struct Vec2D {
+	size_t S, T, size;
+	A *v;
+
+	Vec2D(int S, int T): T(T), S(S), size(T * S) { v = new A[size]; }
+	Vec2D(int S, int T, A value): Vec2D(S, T) { fill(v, v + size, value); }
+	Vec2D(Vec2D<A> const &o): Vec2D(o.S, o.T) { copy(o.v, o.v + size, v); }
 	~Vec2D() { delete[] v; }
-	T const operator()(size_t y, size_t x) const { return v[x + y * w]; }
-	T& operator()(size_t y, size_t x) { return v[x + y * w]; }
-	void init(int &y, int &x) const { y = 0; x = -1; }
-	bool next(int &y, int &x) const {
-		if ((size_t)++x >= w) {
+	A const operator()(size_t y, size_t x) const { return v[x + y * T]; }
+	A& operator()(size_t y, size_t x) { return v[x + y * T]; }
+	void init(size_t &y, size_t &x) const { y = 0; x = -1; }
+	bool next(size_t &y, size_t &x) const {
+		if (++x >= T) {
 			x = 0;
-			return ((size_t)++y < h);
+			return (++y < S);
 		} else return true;
 	}
 };
@@ -40,8 +42,8 @@ Vec2D<int> randGraph(int N) {
 }
 
 void print(Vec2D<int> g) {
-	for (size_t s = 0; s < g.h; s++) {
-		for (size_t t = 0; t < g.w; t++) {
+	for (size_t s = 0; s < g.S; s++) {
+		for (size_t t = 0; t < g.T; t++) {
 			cout << g(s, t) << " ";
 		}
 		cout << endl;
@@ -63,14 +65,52 @@ int matchCost(vector<int> const &u, vector<int> const &v) {
 	return m;
 }
 
+bool check(Vec2D<int> const &g, vector<int> const &m1, vector<int> const &m2, vector<int> const &u, vector<int> const &v) {
+	u64 w = 0;
+	for (int x: u) w += x;
+	for (int x: v) w += x;
+
+	int card = 0;
+	u64 cost = 0;
+	for (size_t s = 0; s < m1.size(); s++) {
+		if (m1[s] == -1 or m2[m1[s]] == s) {
+			cost += g(s, m1[s]);
+			card++;
+		} else {
+			cout << "Error: infeasible primal solution" << endl;
+			return false;
+		}
+	}
+
+	size_t s,t;
+	for (g.init(s,t); g.next(s,t);) {
+		if (u[s] + v[t] > g(s,t)) {
+			cout << "Error: infeasible dual solution" << endl;
+			return false;
+		}
+	}
+
+	if (card < min(g.T, g.S)) {
+		cout << "Error: cardinality too small" << endl;
+		return false;
+	}
+
+	if (w != cost) {
+		cout << "Error: primal and dual solutions are different" << endl;
+		return false;
+	} 
+
+	return true;
+}
+
 int minMatch(Vec2D<int> const &c) {
-	int S = c.h; int T = c.w;
+	int S = c.S; int T = c.T;
 	vector<int> u(S, INT_MAX);
 	vector<int> v(T, INT_MAX);
 	vector<int> m1(S, -1);
 	vector<int> m2(T, -1);
 	int card = 0;
-	int s, t;
+	size_t s, t;
 
 // step 1 dual init
 	for (c.init(s, t); c.next(s, t);) {
@@ -179,12 +219,15 @@ int minMatch(Vec2D<int> const &c) {
 
 	}
 
-	return matchCost(u, v);
+	if (check(c, m1, m2, u, v)) {
+		return matchCost(u, v);
+	} else return -1;
 }
 
+
 int brute(Vec2D<int> const &g) {
-	vector<int> m(g.w);
-	for (size_t i = 0; i < g.w; i++) { m[i] = i; }
+	vector<int> m(g.T);
+	for (size_t i = 0; i < g.T; i++) { m[i] = i; }
 
 	int best = INT_MAX;
 	do {
@@ -202,11 +245,11 @@ int main(int argc, char **argv) {
 		int N = atoi(argv[1]);
 		while (true) {
 			Vec2D<int> g = randGraph(N);
-			int m1 = brute(g);
-			int m2 = minMatch(g);
+			int m1 = minMatch(g);
 
-			cout << m1 << " " << m2 << endl;
-			while (m1 != m2);
+			cout << m1 << endl;
+
+			while (m1 == -1);
 		}
 
 	} else {
